@@ -109,6 +109,17 @@ public class Ride {
         this.availableSeats = availableSeats;
     }
 
+    public void reserveSeat() {
+        if (availableSeats <= 0) {
+            throw new IllegalStateException("No seats available");
+        }
+        availableSeats--;
+    }
+
+    public void releaseSeat() {
+        availableSeats++;
+    }
+
     public BigDecimal getPrice() {
         return price;
     }
@@ -133,4 +144,3 @@ public class Ride {
         return updatedAt;
     }
 }
-
