@@ -43,6 +43,22 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.UNAUTHORIZED, exception.getMessage(), request.getRequestURI());
     }
 
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleResourceNotFound(
+            ResourceNotFoundException exception,
+            HttpServletRequest request
+    ) {
+        return build(HttpStatus.NOT_FOUND, exception.getMessage(), request.getRequestURI());
+    }
+
+    @ExceptionHandler(ForbiddenOperationException.class)
+    public ResponseEntity<ErrorResponse> handleForbiddenOperation(
+            ForbiddenOperationException exception,
+            HttpServletRequest request
+    ) {
+        return build(HttpStatus.FORBIDDEN, exception.getMessage(), request.getRequestURI());
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleUnexpected(Exception exception, HttpServletRequest request) {
         return build(HttpStatus.INTERNAL_SERVER_ERROR, "Unexpected server error", request.getRequestURI());
