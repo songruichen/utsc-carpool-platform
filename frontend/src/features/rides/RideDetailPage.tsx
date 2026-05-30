@@ -1,8 +1,9 @@
 import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { CalendarClock, MapPin, UsersRound } from 'lucide-react';
 import { Alert } from '@/components/ui/Alert';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { useAuth } from '@/features/auth/useAuth';
@@ -10,11 +11,12 @@ import { formatDateTime, formatMoney } from '@/features/rides/formatters';
 import { RideStatusBadge } from '@/features/rides/components/RideStatusBadge';
 import { hasRequestedRide } from '@/features/rides/rideStatus';
 import { getApiErrorMessage } from '@/lib/api/errors';
-import { getRide, getRideRequests, requestRide } from '@/lib/api/rides';
+import { deleteRide, getRide, getRideRequests, requestRide } from '@/lib/api/rides';
 import type { Ride, RideRequest } from '@/types/api';
 
 export function RideDetailPage() {
   const { rideId } = useParams<{ rideId: string }>();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [ride, setRide] = useState<Ride | null>(null);
   const [requests, setRequests] = useState<RideRequest[]>([]);
@@ -22,6 +24,8 @@ export function RideDetailPage() {
   const [isRequesting, setIsRequesting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [requestMessage, setRequestMessage] = useState<string | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -80,6 +84,24 @@ export function RideDetailPage() {
       setError(getApiErrorMessage(requestError));
     } finally {
       setIsRequesting(false);
+    }
+  }
+
+  async function handleConfirmDelete() {
+    if (!ride || isDeleting) {
+      return;
+    }
+
+    setIsDeleting(true);
+    setError(null);
+
+    try {
+      await deleteRide(ride.id);
+      navigate('/my-rides', { replace: true, state: { successMessage: 'Ride deleted successfully.' } });
+    } catch (deleteError) {
+      setError(getApiErrorMessage(deleteError));
+    } finally {
+      setIsDeleting(false);
     }
   }
 
@@ -150,6 +172,18 @@ export function RideDetailPage() {
               ? 'Passengers can request seats from the ride listing or detail page.'
               : 'Send the driver a request. They can accept or reject it from their request list.'}
           </p>
+          {isOwnRide ? (
+            <button
+              type="button"
+              onClick={() => {
+                setError(null);
+                setIsDeleteDialogOpen(true);
+              }}
+              className="mt-5 w-full rounded-md border border-red-200 px-4 py-2.5 text-sm font-semibold text-red-700 transition hover:bg-red-50"
+            >
+              Delete ride
+            </button>
+          ) : null}
           {!isOwnRide ? (
             <button
               type="button"
@@ -180,6 +214,16 @@ export function RideDetailPage() {
           </div>
         ) : null}
       </aside>
+      <ConfirmDialog
+        isOpen={isDeleteDialogOpen}
+        title="Delete this ride?"
+        description="This action is permanent. The ride and its seat requests will be removed and cannot be recovered."
+        confirmLabel="Confirm Delete"
+        errorMessage={error}
+        isConfirming={isDeleting}
+        onCancel={() => setIsDeleteDialogOpen(false)}
+        onConfirm={() => void handleConfirmDelete()}
+      />
     </section>
   );
 }
