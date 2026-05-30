@@ -8,22 +8,33 @@ import ca.utoronto.utsc.carpool.modules.ride.dto.RideResponse;
 import ca.utoronto.utsc.carpool.modules.ride.entity.Ride;
 import ca.utoronto.utsc.carpool.modules.ride.mapper.RideMapper;
 import ca.utoronto.utsc.carpool.modules.ride.repository.RideRepository;
+import ca.utoronto.utsc.carpool.modules.riderequest.entity.RideRequestStatus;
+import ca.utoronto.utsc.carpool.modules.riderequest.repository.RideRequestRepository;
 import ca.utoronto.utsc.carpool.modules.user.entity.User;
 import ca.utoronto.utsc.carpool.modules.user.repository.UserRepository;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 public class RideService {
 
     private final RideRepository rideRepository;
+    private final RideRequestRepository rideRequestRepository;
     private final UserRepository userRepository;
 
-    public RideService(RideRepository rideRepository, UserRepository userRepository) {
+    public RideService(
+            RideRepository rideRepository,
+            RideRequestRepository rideRequestRepository,
+            UserRepository userRepository
+    ) {
         this.rideRepository = rideRepository;
+        this.rideRequestRepository = rideRequestRepository;
         this.userRepository = userRepository;
     }
 
@@ -35,13 +46,18 @@ public class RideService {
     }
 
     @Transactional(readOnly = true)
-    public PageResponse<RideResponse> getRides(Pageable pageable) {
-        return PageResponse.from(rideRepository.findAll(pageable).map(RideMapper::toResponse));
+    public PageResponse<RideResponse> getRides(Pageable pageable, UUID currentUserId) {
+        Page<Ride> rides = rideRepository.findAll(pageable);
+        Map<UUID, RideRequestStatus> requestStatuses = rideRequestRepository
+                .findByPassengerIdAndRideIdIn(currentUserId, rides.map(Ride::getId).toList())
+                .stream()
+                .collect(Collectors.toMap(request -> request.getRide().getId(), request -> request.getStatus()));
+        return PageResponse.from(rides.map(ride -> RideMapper.toResponse(ride, requestStatuses.get(ride.getId()))));
     }
 
     @Transactional(readOnly = true)
-    public RideResponse getRide(UUID rideId) {
-        return RideMapper.toResponse(findRideWithDriver(rideId));
+    public RideResponse getRide(UUID rideId, UUID currentUserId) {
+        return toResponse(findRideWithDriver(rideId), currentUserId);
     }
 
     @Transactional
@@ -58,5 +74,12 @@ public class RideService {
     private Ride findRideWithDriver(UUID rideId) {
         return rideRepository.findById(rideId)
                 .orElseThrow(() -> new ResourceNotFoundException("Ride not found"));
+    }
+
+    private RideResponse toResponse(Ride ride, UUID currentUserId) {
+        RideRequestStatus requestStatus = rideRequestRepository.findByRideIdAndPassengerId(ride.getId(), currentUserId)
+                .map(request -> request.getStatus())
+                .orElse(null);
+        return RideMapper.toResponse(ride, requestStatus);
     }
 }

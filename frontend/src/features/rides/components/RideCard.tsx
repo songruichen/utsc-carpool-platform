@@ -3,6 +3,7 @@ import { CalendarClock, MapPin, UsersRound } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { Ride } from '@/types/api';
 import { formatDateTime, formatMoney } from '@/features/rides/formatters';
+import { RideStatusBadge } from '@/features/rides/components/RideStatusBadge';
 
 type RideCardProps = {
   ride: Ride;
@@ -24,6 +25,9 @@ export function RideCard({ ride, action }: RideCardProps) {
         <div className="text-left sm:text-right">
           <p className="text-xl font-semibold text-slate-950">{formatMoney(ride.price)}</p>
           <p className="text-xs text-slate-500">per seat</p>
+          <div className="mt-3 sm:flex sm:justify-end">
+            <RideStatusBadge ride={ride} />
+          </div>
         </div>
       </div>
 
