@@ -18,6 +18,10 @@ export async function createRide(request: CreateRideRequest): Promise<Ride> {
   return response.data.data;
 }
 
+export async function deleteRide(rideId: string): Promise<void> {
+  await apiClient.delete(`/rides/${rideId}`);
+}
+
 export async function requestRide(rideId: string): Promise<RideRequest> {
   const response = await apiClient.post<ApiResponse<RideRequest>>(`/rides/${rideId}/requests`);
   return response.data.data;
