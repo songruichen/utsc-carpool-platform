@@ -1,5 +1,7 @@
 package ca.utoronto.utsc.carpool.modules.ride.dto;
 
+import ca.utoronto.utsc.carpool.modules.riderequest.entity.RideRequestStatus;
+
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
@@ -15,7 +17,7 @@ public record RideResponse(
         BigDecimal price,
         String notes,
         Instant createdAt,
-        Instant updatedAt
+        Instant updatedAt,
+        RideRequestStatus currentUserRequestStatus
 ) {
 }
-

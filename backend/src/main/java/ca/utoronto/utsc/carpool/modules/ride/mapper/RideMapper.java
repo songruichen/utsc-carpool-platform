@@ -3,6 +3,7 @@ package ca.utoronto.utsc.carpool.modules.ride.mapper;
 import ca.utoronto.utsc.carpool.modules.ride.dto.CreateRideRequest;
 import ca.utoronto.utsc.carpool.modules.ride.dto.RideResponse;
 import ca.utoronto.utsc.carpool.modules.ride.entity.Ride;
+import ca.utoronto.utsc.carpool.modules.riderequest.entity.RideRequestStatus;
 import ca.utoronto.utsc.carpool.modules.user.entity.User;
 
 public final class RideMapper {
@@ -23,6 +24,10 @@ public final class RideMapper {
     }
 
     public static RideResponse toResponse(Ride ride) {
+        return toResponse(ride, null);
+    }
+
+    public static RideResponse toResponse(Ride ride, RideRequestStatus currentUserRequestStatus) {
         User driver = ride.getDriver();
         return new RideResponse(
                 ride.getId(),
@@ -35,8 +40,8 @@ public final class RideMapper {
                 ride.getPrice(),
                 ride.getNotes(),
                 ride.getCreatedAt(),
-                ride.getUpdatedAt()
+                ride.getUpdatedAt(),
+                currentUserRequestStatus
         );
     }
 }
-

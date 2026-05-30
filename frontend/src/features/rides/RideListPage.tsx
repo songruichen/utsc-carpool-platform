@@ -4,6 +4,7 @@ import { Alert } from '@/components/ui/Alert';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { RideCard } from '@/features/rides/components/RideCard';
+import { hasRequestedRide } from '@/features/rides/rideStatus';
 import { useAuth } from '@/features/auth/useAuth';
 import { getApiErrorMessage } from '@/lib/api/errors';
 import { getRides, requestRide } from '@/lib/api/rides';
@@ -53,7 +54,12 @@ export function RideListPage() {
     setError(null);
 
     try {
-      await requestRide(ride.id);
+      const request = await requestRide(ride.id);
+      setRides((current) =>
+        current.map((currentRide) =>
+          currentRide.id === ride.id ? { ...currentRide, currentUserRequestStatus: request.status } : currentRide
+        )
+      );
       setRequestMessage(`Request sent to ${ride.driverName}.`);
     } catch (requestError) {
       setError(getApiErrorMessage(requestError));
@@ -102,6 +108,7 @@ export function RideListPage() {
             {rides.map((ride) => {
               const isOwnRide = ride.driverId === user?.id;
               const isFull = ride.availableSeats <= 0;
+              const hasRequested = hasRequestedRide(ride);
 
               return (
                 <RideCard
@@ -110,11 +117,19 @@ export function RideListPage() {
                   action={
                     <button
                       type="button"
-                      disabled={isOwnRide || isFull || requestingRideId === ride.id}
+                      disabled={isOwnRide || isFull || hasRequested || requestingRideId === ride.id}
                       onClick={() => void handleRequestRide(ride)}
                       className="rounded-md bg-slate-950 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
                     >
-                      {requestingRideId === ride.id ? 'Requesting...' : isOwnRide ? 'Your ride' : isFull ? 'Full' : 'Request seat'}
+                      {requestingRideId === ride.id
+                        ? 'Requesting...'
+                        : isOwnRide
+                          ? 'Your ride'
+                          : hasRequested
+                            ? 'Requested'
+                            : isFull
+                              ? 'Full'
+                              : 'Request seat'}
                     </button>
                   }
                 />

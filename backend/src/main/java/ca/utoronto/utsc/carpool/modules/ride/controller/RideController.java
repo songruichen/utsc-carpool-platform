@@ -44,14 +44,18 @@ public class RideController {
 
     @GetMapping
     public ApiResponse<PageResponse<RideResponse>> getRides(
-            @PageableDefault(size = 20, sort = "departureTime", direction = Sort.Direction.ASC) Pageable pageable
+            @PageableDefault(size = 20, sort = "departureTime", direction = Sort.Direction.ASC) Pageable pageable,
+            @AuthenticationPrincipal SecurityUserDetails currentUser
     ) {
-        return ApiResponse.success(rideService.getRides(pageable));
+        return ApiResponse.success(rideService.getRides(pageable, currentUser.getId()));
     }
 
     @GetMapping("/{id}")
-    public ApiResponse<RideResponse> getRide(@PathVariable UUID id) {
-        return ApiResponse.success(rideService.getRide(id));
+    public ApiResponse<RideResponse> getRide(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal SecurityUserDetails currentUser
+    ) {
+        return ApiResponse.success(rideService.getRide(id, currentUser.getId()));
     }
 
     @DeleteMapping("/{id}")
@@ -63,4 +67,3 @@ public class RideController {
         rideService.deleteRide(id, currentUser.getId());
     }
 }
-

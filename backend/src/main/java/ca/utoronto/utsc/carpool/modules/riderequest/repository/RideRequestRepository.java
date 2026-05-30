@@ -10,11 +10,16 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Collection;
 import java.util.UUID;
 
 public interface RideRequestRepository extends JpaRepository<RideRequest, UUID> {
 
     boolean existsByRideIdAndPassengerId(UUID rideId, UUID passengerId);
+
+    Optional<RideRequest> findByRideIdAndPassengerId(UUID rideId, UUID passengerId);
+
+    List<RideRequest> findByPassengerIdAndRideIdIn(UUID passengerId, Collection<UUID> rideIds);
 
     @EntityGraph(attributePaths = {"ride.driver", "passenger"})
     List<RideRequest> findByRideIdOrderByCreatedAtAsc(UUID rideId);

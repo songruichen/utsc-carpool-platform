@@ -7,6 +7,8 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { useAuth } from '@/features/auth/useAuth';
 import { formatDateTime, formatMoney } from '@/features/rides/formatters';
+import { RideStatusBadge } from '@/features/rides/components/RideStatusBadge';
+import { hasRequestedRide } from '@/features/rides/rideStatus';
 import { getApiErrorMessage } from '@/lib/api/errors';
 import { getRide, getRideRequests, requestRide } from '@/lib/api/rides';
 import type { Ride, RideRequest } from '@/types/api';
@@ -71,7 +73,8 @@ export function RideDetailPage() {
     setError(null);
 
     try {
-      await requestRide(ride.id);
+      const request = await requestRide(ride.id);
+      setRide((current) => (current ? { ...current, currentUserRequestStatus: request.status } : current));
       setRequestMessage(`Request sent to ${ride.driverName}.`);
     } catch (requestError) {
       setError(getApiErrorMessage(requestError));
@@ -94,6 +97,7 @@ export function RideDetailPage() {
 
   const isOwnRide = ride.driverId === user?.id;
   const isFull = ride.availableSeats <= 0;
+  const hasRequested = hasRequestedRide(ride);
 
   return (
     <section className="grid gap-6 lg:grid-cols-[1fr_360px]">
@@ -111,6 +115,9 @@ export function RideDetailPage() {
           <div className="text-left sm:text-right">
             <p className="text-2xl font-semibold text-slate-950">{formatMoney(ride.price)}</p>
             <p className="text-sm text-slate-500">per seat</p>
+            <div className="mt-3 sm:flex sm:justify-end">
+              <RideStatusBadge ride={ride} />
+            </div>
           </div>
         </div>
 
@@ -146,11 +153,11 @@ export function RideDetailPage() {
           {!isOwnRide ? (
             <button
               type="button"
-              disabled={isFull || isRequesting}
+              disabled={isFull || hasRequested || isRequesting}
               onClick={() => void handleRequestSeat()}
               className="mt-5 w-full rounded-md bg-utsc-teal px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:bg-slate-300"
             >
-              {isRequesting ? 'Requesting...' : isFull ? 'Ride is full' : 'Request seat'}
+              {isRequesting ? 'Requesting...' : hasRequested ? 'Requested' : isFull ? 'Ride is full' : 'Request seat'}
             </button>
           ) : null}
         </div>

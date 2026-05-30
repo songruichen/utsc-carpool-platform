@@ -68,6 +68,16 @@ class RideRequestControllerIntegrationTests {
                 .andExpect(jsonPath("$.data.passengerId").exists())
                 .andExpect(jsonPath("$.data.createdAt").exists())
                 .andExpect(jsonPath("$.data.updatedAt").exists());
+
+        mockMvc.perform(get("/api/v1/rides/{id}", rideId)
+                        .header("Authorization", bearer(passengerToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.currentUserRequestStatus").value("PENDING"));
+
+        mockMvc.perform(get("/api/v1/rides")
+                        .header("Authorization", bearer(passengerToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content[0].currentUserRequestStatus").value("PENDING"));
     }
 
     @Test
