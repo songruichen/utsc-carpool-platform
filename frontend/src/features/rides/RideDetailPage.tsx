@@ -11,7 +11,7 @@ import { formatDateTime, formatMoney } from '@/features/rides/formatters';
 import { RideStatusBadge } from '@/features/rides/components/RideStatusBadge';
 import { hasRequestedRide } from '@/features/rides/rideStatus';
 import { getApiErrorMessage } from '@/lib/api/errors';
-import { deleteRide, getRide, getRideRequests, requestRide } from '@/lib/api/rides';
+import { acceptRideRequest, deleteRide, getRide, getRideRequests, requestRide } from '@/lib/api/rides';
 import type { Ride, RideRequest } from '@/types/api';
 
 export function RideDetailPage() {
@@ -26,6 +26,7 @@ export function RideDetailPage() {
   const [requestMessage, setRequestMessage] = useState<string | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [acceptingRequestId, setAcceptingRequestId] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -102,6 +103,29 @@ export function RideDetailPage() {
       setError(getApiErrorMessage(deleteError));
     } finally {
       setIsDeleting(false);
+    }
+  }
+
+  async function handleAcceptRequest(requestId: string) {
+    if (acceptingRequestId) {
+      return;
+    }
+
+    setAcceptingRequestId(requestId);
+    setError(null);
+
+    try {
+      const acceptedRequest = await acceptRideRequest(requestId);
+      setRequests((current) =>
+        current.map((request) => (request.id === acceptedRequest.id ? acceptedRequest : request))
+      );
+      setRide((current) =>
+        current ? { ...current, availableSeats: Math.max(0, current.availableSeats - 1) } : current
+      );
+    } catch (acceptError) {
+      setError(getApiErrorMessage(acceptError));
+    } finally {
+      setAcceptingRequestId(null);
     }
   }
 
@@ -203,12 +227,26 @@ export function RideDetailPage() {
               <p className="mt-3 text-sm text-slate-600">No requests yet.</p>
             ) : (
               <div className="mt-4 space-y-3">
-                {requests.map((request) => (
-                  <div key={request.id} className="rounded-md border border-slate-200 p-3">
-                    <p className="text-sm font-medium text-slate-950">{request.passengerName}</p>
-                    <p className="mt-1 text-xs font-medium uppercase tracking-wide text-slate-500">{request.status}</p>
-                  </div>
-                ))}
+                {requests.map((request) => {
+                  const isAccepting = acceptingRequestId === request.id;
+
+                  return (
+                    <div key={request.id} className="rounded-md border border-slate-200 p-3">
+                      <p className="text-sm font-medium text-slate-950">{request.passengerName}</p>
+                      <p className="mt-1 text-xs font-medium uppercase tracking-wide text-slate-500">{request.status}</p>
+                      {request.status === 'PENDING' ? (
+                        <button
+                          type="button"
+                          disabled={Boolean(acceptingRequestId)}
+                          onClick={() => void handleAcceptRequest(request.id)}
+                          className="mt-3 rounded-md bg-utsc-teal px-3 py-2 text-sm font-semibold text-white transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                        >
+                          {isAccepting ? 'Accepting...' : 'Accept'}
+                        </button>
+                      ) : null}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>

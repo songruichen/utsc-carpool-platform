@@ -31,3 +31,8 @@ export async function getRideRequests(rideId: string): Promise<RideRequest[]> {
   const response = await apiClient.get<ApiResponse<RideRequest[]>>(`/rides/${rideId}/requests`);
   return response.data.data;
 }
+
+export async function acceptRideRequest(requestId: string): Promise<RideRequest> {
+  const response = await apiClient.patch<ApiResponse<RideRequest>>(`/requests/${requestId}/accept`);
+  return response.data.data;
+}
