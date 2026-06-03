@@ -36,3 +36,12 @@ export async function acceptRideRequest(requestId: string): Promise<RideRequest>
   const response = await apiClient.patch<ApiResponse<RideRequest>>(`/requests/${requestId}/accept`);
   return response.data.data;
 }
+
+export async function rejectRideRequest(requestId: string): Promise<RideRequest> {
+  const response = await apiClient.patch<ApiResponse<RideRequest>>(`/requests/${requestId}/reject`);
+  return response.data.data;
+}
+
+export async function cancelRideRequest(requestId: string): Promise<void> {
+  await apiClient.delete(`/requests/${requestId}`);
+}
