@@ -72,6 +72,13 @@ export type CreateRideRequest = {
   notes?: string;
 };
 
+export type DriverRideStats = {
+  activeRides: number;
+  pendingRequests: number;
+  acceptedPassengers: number;
+  totalRemainingSeats: number;
+};
+
 export type RideRequestStatus = 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'CANCELLED';
 
 export type RideRequest = {

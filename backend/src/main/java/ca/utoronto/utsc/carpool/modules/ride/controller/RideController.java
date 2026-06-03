@@ -3,6 +3,7 @@ package ca.utoronto.utsc.carpool.modules.ride.controller;
 import ca.utoronto.utsc.carpool.common.api.ApiResponse;
 import ca.utoronto.utsc.carpool.common.api.PageResponse;
 import ca.utoronto.utsc.carpool.modules.ride.dto.CreateRideRequest;
+import ca.utoronto.utsc.carpool.modules.ride.dto.DriverRideStatsResponse;
 import ca.utoronto.utsc.carpool.modules.ride.dto.RideResponse;
 import ca.utoronto.utsc.carpool.modules.ride.service.RideService;
 import ca.utoronto.utsc.carpool.security.SecurityUserDetails;
@@ -56,6 +57,13 @@ public class RideController {
             @AuthenticationPrincipal SecurityUserDetails currentUser
     ) {
         return ApiResponse.success(rideService.getRide(id, currentUser.getId()));
+    }
+
+    @GetMapping("/me/stats")
+    public ApiResponse<DriverRideStatsResponse> getDriverRideStats(
+            @AuthenticationPrincipal SecurityUserDetails currentUser
+    ) {
+        return ApiResponse.success(rideService.getDriverRideStats(currentUser.getId()));
     }
 
     @DeleteMapping("/{id}")

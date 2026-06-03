@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.Collection;
@@ -44,4 +45,17 @@ public interface RideRequestRepository extends JpaRepository<RideRequest, UUID> 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select rr from RideRequest rr join fetch rr.ride r join fetch r.driver join fetch rr.passenger where rr.id = :id")
     Optional<RideRequest> findByIdForUpdate(@Param("id") UUID id);
+
+    @Query("""
+            select
+              coalesce(sum(case when rr.status = ca.utoronto.utsc.carpool.modules.riderequest.entity.RideRequestStatus.PENDING then 1 else 0 end), 0) as pendingRequests,
+              coalesce(sum(case when rr.status = ca.utoronto.utsc.carpool.modules.riderequest.entity.RideRequestStatus.ACCEPTED then 1 else 0 end), 0) as acceptedPassengers
+            from RideRequest rr
+            where rr.ride.driver.id = :driverId
+              and rr.ride.departureTime > :now
+            """)
+    DriverRideRequestStatsView getDriverRideRequestStats(
+            @Param("driverId") UUID driverId,
+            @Param("now") Instant now
+    );
 }
