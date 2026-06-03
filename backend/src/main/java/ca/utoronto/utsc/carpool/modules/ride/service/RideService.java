@@ -4,11 +4,14 @@ import ca.utoronto.utsc.carpool.common.api.PageResponse;
 import ca.utoronto.utsc.carpool.common.error.ForbiddenOperationException;
 import ca.utoronto.utsc.carpool.common.error.ResourceNotFoundException;
 import ca.utoronto.utsc.carpool.modules.ride.dto.CreateRideRequest;
+import ca.utoronto.utsc.carpool.modules.ride.dto.DriverRideStatsResponse;
 import ca.utoronto.utsc.carpool.modules.ride.dto.RideResponse;
 import ca.utoronto.utsc.carpool.modules.ride.entity.Ride;
 import ca.utoronto.utsc.carpool.modules.ride.mapper.RideMapper;
+import ca.utoronto.utsc.carpool.modules.ride.repository.DriverRideSummaryView;
 import ca.utoronto.utsc.carpool.modules.ride.repository.RideRepository;
 import ca.utoronto.utsc.carpool.modules.riderequest.entity.RideRequestStatus;
+import ca.utoronto.utsc.carpool.modules.riderequest.repository.DriverRideRequestStatsView;
 import ca.utoronto.utsc.carpool.modules.riderequest.repository.RideRequestCountView;
 import ca.utoronto.utsc.carpool.modules.riderequest.repository.RideRequestRepository;
 import ca.utoronto.utsc.carpool.modules.user.entity.User;
@@ -19,6 +22,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Map;
+import java.time.Instant;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -71,6 +75,20 @@ public class RideService {
     @Transactional(readOnly = true)
     public RideResponse getRide(UUID rideId, UUID currentUserId) {
         return toResponse(findRideWithDriver(rideId), currentUserId);
+    }
+
+    @Transactional(readOnly = true)
+    public DriverRideStatsResponse getDriverRideStats(UUID driverId) {
+        Instant now = Instant.now();
+        DriverRideSummaryView rideSummary = rideRepository.getDriverRideSummary(driverId, now);
+        DriverRideRequestStatsView requestStats = rideRequestRepository.getDriverRideRequestStats(driverId, now);
+
+        return new DriverRideStatsResponse(
+                rideSummary.getActiveRides(),
+                requestStats.getPendingRequests(),
+                requestStats.getAcceptedPassengers(),
+                rideSummary.getTotalRemainingSeats()
+        );
     }
 
     @Transactional

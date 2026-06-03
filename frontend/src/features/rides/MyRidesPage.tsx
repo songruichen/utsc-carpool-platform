@@ -4,16 +4,25 @@ import { Alert } from '@/components/ui/Alert';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { LoadingState } from '@/components/ui/LoadingState';
+import { StatCard } from '@/components/ui/StatCard';
 import { useAuth } from '@/features/auth/useAuth';
 import { RideCard } from '@/features/rides/components/RideCard';
 import { getApiErrorMessage } from '@/lib/api/errors';
-import { deleteRide, getRides } from '@/lib/api/rides';
-import type { Ride } from '@/types/api';
+import { deleteRide, getDriverRideStats, getRides } from '@/lib/api/rides';
+import type { DriverRideStats, Ride } from '@/types/api';
+
+const emptyDriverRideStats: DriverRideStats = {
+  activeRides: 0,
+  pendingRequests: 0,
+  acceptedPassengers: 0,
+  totalRemainingSeats: 0
+};
 
 export function MyRidesPage() {
   const { user } = useAuth();
   const location = useLocation();
   const [rides, setRides] = useState<Ride[]>([]);
+  const [stats, setStats] = useState<DriverRideStats>(emptyDriverRideStats);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(
@@ -30,9 +39,10 @@ export function MyRidesPage() {
       setError(null);
 
       try {
-        const response = await getRides(0, 50);
+        const [ridesResponse, statsResponse] = await Promise.all([getRides(0, 50), getDriverRideStats()]);
         if (isMounted) {
-          setRides(response.content);
+          setRides(ridesResponse.content);
+          setStats(statsResponse);
         }
       } catch (loadError) {
         if (isMounted) {
@@ -94,6 +104,14 @@ export function MyRidesPage() {
         {successMessage ? (
           <div className="mb-4 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
             {successMessage}
+          </div>
+        ) : null}
+        {!isLoading && !error ? (
+          <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <StatCard label="Active Rides" value={stats.activeRides} helperText="Upcoming rides you posted" />
+            <StatCard label="Pending Requests" value={stats.pendingRequests} helperText="Waiting for your decision" />
+            <StatCard label="Accepted Passengers" value={stats.acceptedPassengers} helperText="Confirmed seats" />
+            <StatCard label="Total Remaining Seats" value={stats.totalRemainingSeats} helperText="Open seats across active rides" />
           </div>
         ) : null}
         {!isLoading && !error && myRides.length === 0 ? (

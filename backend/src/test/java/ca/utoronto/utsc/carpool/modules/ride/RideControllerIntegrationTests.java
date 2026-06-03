@@ -1,6 +1,7 @@
 package ca.utoronto.utsc.carpool.modules.ride;
 
 import ca.utoronto.utsc.carpool.modules.ride.repository.RideRepository;
+import ca.utoronto.utsc.carpool.modules.riderequest.repository.RideRequestRepository;
 import ca.utoronto.utsc.carpool.modules.user.repository.UserRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -21,6 +22,7 @@ import java.util.UUID;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -40,10 +42,14 @@ class RideControllerIntegrationTests {
     private RideRepository rideRepository;
 
     @Autowired
+    private RideRequestRepository rideRequestRepository;
+
+    @Autowired
     private UserRepository userRepository;
 
     @AfterEach
     void cleanDatabase() {
+        rideRequestRepository.deleteAll();
         rideRepository.deleteAll();
         userRepository.deleteAll();
     }
@@ -51,6 +57,9 @@ class RideControllerIntegrationTests {
     @Test
     void protectedRideEndpointsRequireAuthentication() throws Exception {
         mockMvc.perform(get("/api/v1/rides"))
+                .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(get("/api/v1/rides/me/stats"))
                 .andExpect(status().isUnauthorized());
 
         mockMvc.perform(post("/api/v1/rides")
@@ -144,11 +153,76 @@ class RideControllerIntegrationTests {
                 .andExpect(status().isNotFound());
     }
 
+    @Test
+    void driverRideStatsReturnCountsForCurrentDriverOnly() throws Exception {
+        String driverToken = registerAndGetToken("stats-driver@example.com");
+        String otherDriverToken = registerAndGetToken("stats-other-driver@example.com");
+        String passengerOneToken = registerAndGetToken("stats-passenger-one@example.com");
+        String passengerTwoToken = registerAndGetToken("stats-passenger-two@example.com");
+        String otherPassengerToken = registerAndGetToken("stats-other-passenger@example.com");
+
+        UUID firstRideId = createRideAndGetId(driverToken, 3);
+        UUID secondRideId = createRideAndGetId(driverToken, 2);
+        UUID otherRideId = createRideAndGetId(otherDriverToken, 5);
+        UUID acceptedRequestId = createRequestAndGetId(passengerOneToken, secondRideId);
+
+        createRequestAndGetId(passengerTwoToken, firstRideId);
+        createRequestAndGetId(otherPassengerToken, otherRideId);
+
+        mockMvc.perform(patch("/api/v1/requests/{requestId}/accept", acceptedRequestId)
+                        .header("Authorization", bearer(driverToken)))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/v1/rides/me/stats")
+                        .header("Authorization", bearer(driverToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.activeRides").value(2))
+                .andExpect(jsonPath("$.data.pendingRequests").value(1))
+                .andExpect(jsonPath("$.data.acceptedPassengers").value(1))
+                .andExpect(jsonPath("$.data.totalRemainingSeats").value(4));
+
+        mockMvc.perform(get("/api/v1/rides/me/stats")
+                        .header("Authorization", bearer(otherDriverToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.activeRides").value(1))
+                .andExpect(jsonPath("$.data.pendingRequests").value(1))
+                .andExpect(jsonPath("$.data.acceptedPassengers").value(0))
+                .andExpect(jsonPath("$.data.totalRemainingSeats").value(5));
+    }
+
+    @Test
+    void driverRideStatsReturnZerosForEmptyAccount() throws Exception {
+        String token = registerAndGetToken("stats-empty@example.com");
+
+        mockMvc.perform(get("/api/v1/rides/me/stats")
+                        .header("Authorization", bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.activeRides").value(0))
+                .andExpect(jsonPath("$.data.pendingRequests").value(0))
+                .andExpect(jsonPath("$.data.acceptedPassengers").value(0))
+                .andExpect(jsonPath("$.data.totalRemainingSeats").value(0));
+    }
+
     private UUID createRideAndGetId(String token) throws Exception {
+        return createRideAndGetId(token, 3);
+    }
+
+    private UUID createRideAndGetId(String token, int availableSeats) throws Exception {
         String response = mockMvc.perform(post("/api/v1/rides")
                         .header("Authorization", bearer(token))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(validRideRequest())))
+                        .content(objectMapper.writeValueAsString(validRideRequest(availableSeats))))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        return UUID.fromString(objectMapper.readTree(response).at("/data/id").asText());
+    }
+
+    private UUID createRequestAndGetId(String token, UUID rideId) throws Exception {
+        String response = mockMvc.perform(post("/api/v1/rides/{rideId}/requests", rideId)
+                        .header("Authorization", bearer(token)))
                 .andExpect(status().isCreated())
                 .andReturn()
                 .getResponse()
@@ -176,11 +250,15 @@ class RideControllerIntegrationTests {
     }
 
     private Map<String, Object> validRideRequest() {
+        return validRideRequest(3);
+    }
+
+    private Map<String, Object> validRideRequest(int availableSeats) {
         return Map.of(
                 "origin", "UTSC Student Centre",
                 "destination", "Scarborough Town Centre",
                 "departureTime", Instant.now().plusSeconds(86_400).toString(),
-                "availableSeats", 3,
+                "availableSeats", availableSeats,
                 "price", new BigDecimal("8.50"),
                 "notes", "Meet near the main entrance"
         );
@@ -190,4 +268,3 @@ class RideControllerIntegrationTests {
         return "Bearer " + token;
     }
 }
-

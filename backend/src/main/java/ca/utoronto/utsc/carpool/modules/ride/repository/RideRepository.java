@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -26,4 +27,15 @@ public interface RideRepository extends JpaRepository<Ride, UUID> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select r from Ride r join fetch r.driver where r.id = :id")
     Optional<Ride> findByIdForUpdate(@Param("id") UUID id);
+
+    @Query("""
+            select count(r.id) as activeRides, coalesce(sum(r.availableSeats), 0) as totalRemainingSeats
+            from Ride r
+            where r.driver.id = :driverId
+              and r.departureTime > :now
+            """)
+    DriverRideSummaryView getDriverRideSummary(
+            @Param("driverId") UUID driverId,
+            @Param("now") Instant now
+    );
 }
