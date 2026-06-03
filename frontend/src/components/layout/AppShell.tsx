@@ -32,6 +32,9 @@ export function AppShell({ children }: PropsWithChildren) {
               <NavItem to="/my-rides" end>
                 My rides
               </NavItem>
+              <NavItem to="/my-requests" end>
+                My requests
+              </NavItem>
               <div className="ml-0 flex items-center gap-2 rounded-md border border-slate-200 px-3 py-2 text-slate-700 sm:ml-2">
                 <UserRound className="h-4 w-4" aria-hidden="true" />
                 <span>{user?.firstName}</span>

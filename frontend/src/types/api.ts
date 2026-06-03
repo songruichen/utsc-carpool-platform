@@ -83,3 +83,15 @@ export type RideRequest = {
   createdAt: string;
   updatedAt: string;
 };
+
+export type PassengerRideRequest = {
+  id: string;
+  rideId: string;
+  rideOrigin: string;
+  rideDestination: string;
+  rideDepartureTime: string;
+  rideAvailableSeats: number;
+  status: RideRequestStatus;
+  createdAt: string;
+  updatedAt: string;
+};

@@ -4,6 +4,7 @@ import { ProtectedRoute } from '@/components/routes/ProtectedRoute';
 import { AuthPage } from '@/features/auth/AuthPage';
 import { HomePage } from '@/features/home/HomePage';
 import { CreateRidePage } from '@/features/rides/CreateRidePage';
+import { MyRequestsPage } from '@/features/rides/MyRequestsPage';
 import { MyRidesPage } from '@/features/rides/MyRidesPage';
 import { RideDetailPage } from '@/features/rides/RideDetailPage';
 import { RideListPage } from '@/features/rides/RideListPage';
@@ -20,6 +21,7 @@ export default function App() {
           <Route path="/rides/new" element={<CreateRidePage />} />
           <Route path="/rides/:rideId" element={<RideDetailPage />} />
           <Route path="/my-rides" element={<MyRidesPage />} />
+          <Route path="/my-requests" element={<MyRequestsPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
