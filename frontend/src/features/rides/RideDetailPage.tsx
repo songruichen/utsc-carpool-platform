@@ -9,9 +9,18 @@ import { LoadingState } from '@/components/ui/LoadingState';
 import { useAuth } from '@/features/auth/useAuth';
 import { formatDateTime, formatMoney } from '@/features/rides/formatters';
 import { RideStatusBadge } from '@/features/rides/components/RideStatusBadge';
+import { getPassengerRideRequest, storePassengerRideRequest } from '@/features/rides/passengerRequestStorage';
 import { hasRequestedRide } from '@/features/rides/rideStatus';
 import { getApiErrorMessage } from '@/lib/api/errors';
-import { acceptRideRequest, deleteRide, getRide, getRideRequests, requestRide } from '@/lib/api/rides';
+import {
+  acceptRideRequest,
+  cancelRideRequest,
+  deleteRide,
+  getRide,
+  getRideRequests,
+  rejectRideRequest,
+  requestRide
+} from '@/lib/api/rides';
 import type { Ride, RideRequest } from '@/types/api';
 
 export function RideDetailPage() {
@@ -26,7 +35,10 @@ export function RideDetailPage() {
   const [requestMessage, setRequestMessage] = useState<string | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [acceptingRequestId, setAcceptingRequestId] = useState<string | null>(null);
+  const [passengerRequest, setPassengerRequest] = useState<RideRequest | null>(null);
+  const [processingRequest, setProcessingRequest] = useState<{ id: string; action: 'accept' | 'reject' | 'cancel' } | null>(
+    null
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -49,6 +61,16 @@ export function RideDetailPage() {
 
         if (rideData.driverId === user?.id) {
           setRequests(await getRideRequests(rideId));
+        } else if (user?.id) {
+          const storedRequest = getPassengerRideRequest(rideId, user.id);
+
+          if (storedRequest && rideData.currentUserRequestStatus) {
+            const currentRequest = { ...storedRequest, status: rideData.currentUserRequestStatus };
+            setPassengerRequest(currentRequest);
+            storePassengerRideRequest(currentRequest);
+          } else {
+            setPassengerRequest(null);
+          }
         }
       } catch (loadError) {
         if (isMounted) {
@@ -79,6 +101,8 @@ export function RideDetailPage() {
 
     try {
       const request = await requestRide(ride.id);
+      setPassengerRequest(request);
+      storePassengerRideRequest(request);
       setRide((current) => (current ? { ...current, currentUserRequestStatus: request.status } : current));
       setRequestMessage(`Request sent to ${ride.driverName}.`);
     } catch (requestError) {
@@ -107,11 +131,11 @@ export function RideDetailPage() {
   }
 
   async function handleAcceptRequest(requestId: string) {
-    if (acceptingRequestId) {
+    if (processingRequest) {
       return;
     }
 
-    setAcceptingRequestId(requestId);
+    setProcessingRequest({ id: requestId, action: 'accept' });
     setError(null);
 
     try {
@@ -125,7 +149,58 @@ export function RideDetailPage() {
     } catch (acceptError) {
       setError(getApiErrorMessage(acceptError));
     } finally {
-      setAcceptingRequestId(null);
+      setProcessingRequest(null);
+    }
+  }
+
+  async function handleRejectRequest(requestId: string) {
+    if (processingRequest) {
+      return;
+    }
+
+    setProcessingRequest({ id: requestId, action: 'reject' });
+    setError(null);
+
+    try {
+      const rejectedRequest = await rejectRideRequest(requestId);
+      setRequests((current) =>
+        current.map((request) => (request.id === rejectedRequest.id ? rejectedRequest : request))
+      );
+    } catch (rejectError) {
+      setError(getApiErrorMessage(rejectError));
+    } finally {
+      setProcessingRequest(null);
+    }
+  }
+
+  async function handleCancelRequest() {
+    if (!ride || !passengerRequest || processingRequest) {
+      return;
+    }
+
+    setProcessingRequest({ id: passengerRequest.id, action: 'cancel' });
+    setError(null);
+
+    try {
+      await cancelRideRequest(passengerRequest.id);
+      const cancelledRequest = { ...passengerRequest, status: 'CANCELLED' as const };
+      const shouldReleaseSeat = passengerRequest.status === 'ACCEPTED' || ride.currentUserRequestStatus === 'ACCEPTED';
+
+      setPassengerRequest(cancelledRequest);
+      storePassengerRideRequest(cancelledRequest);
+      setRide((current) =>
+        current
+          ? {
+              ...current,
+              availableSeats: shouldReleaseSeat ? current.availableSeats + 1 : current.availableSeats,
+              currentUserRequestStatus: cancelledRequest.status
+            }
+          : current
+      );
+    } catch (cancelError) {
+      setError(getApiErrorMessage(cancelError));
+    } finally {
+      setProcessingRequest(null);
     }
   }
 
@@ -144,6 +219,12 @@ export function RideDetailPage() {
   const isOwnRide = ride.driverId === user?.id;
   const isFull = ride.availableSeats <= 0;
   const hasRequested = hasRequestedRide(ride);
+  const canCancelRequest =
+    !isOwnRide &&
+    passengerRequest !== null &&
+    passengerRequest.passengerId === user?.id &&
+    (passengerRequest.status === 'PENDING' || passengerRequest.status === 'ACCEPTED');
+  const isCancelling = processingRequest?.action === 'cancel';
 
   return (
     <section className="grid gap-6 lg:grid-cols-[1fr_360px]">
@@ -209,14 +290,32 @@ export function RideDetailPage() {
             </button>
           ) : null}
           {!isOwnRide ? (
-            <button
-              type="button"
-              disabled={isFull || hasRequested || isRequesting}
-              onClick={() => void handleRequestSeat()}
-              className="mt-5 w-full rounded-md bg-utsc-teal px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:bg-slate-300"
-            >
-              {isRequesting ? 'Requesting...' : hasRequested ? 'Requested' : isFull ? 'Ride is full' : 'Request seat'}
-            </button>
+            <>
+              {passengerRequest ? (
+                <p className="mt-4 text-xs font-medium uppercase tracking-wide text-slate-500">
+                  Request status: {passengerRequest.status}
+                </p>
+              ) : null}
+              {canCancelRequest ? (
+                <button
+                  type="button"
+                  disabled={Boolean(processingRequest)}
+                  onClick={() => void handleCancelRequest()}
+                  className="mt-5 w-full rounded-md border border-red-200 px-4 py-2.5 text-sm font-semibold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
+                >
+                  {isCancelling ? 'Cancelling...' : 'Cancel Request'}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  disabled={isFull || hasRequested || isRequesting}
+                  onClick={() => void handleRequestSeat()}
+                  className="mt-5 w-full rounded-md bg-utsc-teal px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                >
+                  {isRequesting ? 'Requesting...' : hasRequested ? 'Requested' : isFull ? 'Ride is full' : 'Request seat'}
+                </button>
+              )}
+            </>
           ) : null}
         </div>
 
@@ -228,21 +327,32 @@ export function RideDetailPage() {
             ) : (
               <div className="mt-4 space-y-3">
                 {requests.map((request) => {
-                  const isAccepting = acceptingRequestId === request.id;
+                  const isAccepting = processingRequest?.id === request.id && processingRequest.action === 'accept';
+                  const isRejecting = processingRequest?.id === request.id && processingRequest.action === 'reject';
 
                   return (
                     <div key={request.id} className="rounded-md border border-slate-200 p-3">
                       <p className="text-sm font-medium text-slate-950">{request.passengerName}</p>
                       <p className="mt-1 text-xs font-medium uppercase tracking-wide text-slate-500">{request.status}</p>
                       {request.status === 'PENDING' ? (
-                        <button
-                          type="button"
-                          disabled={Boolean(acceptingRequestId)}
-                          onClick={() => void handleAcceptRequest(request.id)}
-                          className="mt-3 rounded-md bg-utsc-teal px-3 py-2 text-sm font-semibold text-white transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:bg-slate-300"
-                        >
-                          {isAccepting ? 'Accepting...' : 'Accept'}
-                        </button>
+                        <div className="mt-3 flex gap-2">
+                          <button
+                            type="button"
+                            disabled={Boolean(processingRequest)}
+                            onClick={() => void handleAcceptRequest(request.id)}
+                            className="rounded-md bg-utsc-teal px-3 py-2 text-sm font-semibold text-white transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                          >
+                            {isAccepting ? 'Accepting...' : 'Accept'}
+                          </button>
+                          <button
+                            type="button"
+                            disabled={Boolean(processingRequest)}
+                            onClick={() => void handleRejectRequest(request.id)}
+                            className="rounded-md border border-red-200 px-3 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
+                          >
+                            {isRejecting ? 'Rejecting...' : 'Reject'}
+                          </button>
+                        </div>
                       ) : null}
                     </div>
                   );
