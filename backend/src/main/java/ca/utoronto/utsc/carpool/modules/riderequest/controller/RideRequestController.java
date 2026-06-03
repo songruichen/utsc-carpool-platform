@@ -1,6 +1,7 @@
 package ca.utoronto.utsc.carpool.modules.riderequest.controller;
 
 import ca.utoronto.utsc.carpool.common.api.ApiResponse;
+import ca.utoronto.utsc.carpool.modules.riderequest.dto.PassengerRideRequestResponse;
 import ca.utoronto.utsc.carpool.modules.riderequest.dto.RideRequestResponse;
 import ca.utoronto.utsc.carpool.modules.riderequest.service.RideRequestService;
 import ca.utoronto.utsc.carpool.security.SecurityUserDetails;
@@ -43,6 +44,13 @@ public class RideRequestController {
             @AuthenticationPrincipal SecurityUserDetails currentUser
     ) {
         return ApiResponse.success(rideRequestService.getRideRequests(rideId, currentUser.getId()));
+    }
+
+    @GetMapping("/requests/me")
+    public ApiResponse<List<PassengerRideRequestResponse>> getMyRequests(
+            @AuthenticationPrincipal SecurityUserDetails currentUser
+    ) {
+        return ApiResponse.success(rideRequestService.getPassengerRequests(currentUser.getId()));
     }
 
     @PatchMapping("/requests/{requestId}/accept")

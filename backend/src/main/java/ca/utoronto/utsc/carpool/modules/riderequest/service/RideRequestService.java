@@ -4,6 +4,7 @@ import ca.utoronto.utsc.carpool.common.error.ForbiddenOperationException;
 import ca.utoronto.utsc.carpool.common.error.ResourceNotFoundException;
 import ca.utoronto.utsc.carpool.modules.ride.entity.Ride;
 import ca.utoronto.utsc.carpool.modules.ride.repository.RideRepository;
+import ca.utoronto.utsc.carpool.modules.riderequest.dto.PassengerRideRequestResponse;
 import ca.utoronto.utsc.carpool.modules.riderequest.dto.RideRequestResponse;
 import ca.utoronto.utsc.carpool.modules.riderequest.entity.RideRequest;
 import ca.utoronto.utsc.carpool.modules.riderequest.entity.RideRequestStatus;
@@ -69,6 +70,13 @@ public class RideRequestService {
 
         return rideRequestRepository.findByRideIdOrderByCreatedAtAsc(rideId).stream()
                 .map(RideRequestMapper::toResponse)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<PassengerRideRequestResponse> getPassengerRequests(UUID passengerId) {
+        return rideRequestRepository.findByPassengerIdOrderByCreatedAtDesc(passengerId).stream()
+                .map(RideRequestMapper::toPassengerResponse)
                 .toList();
     }
 
