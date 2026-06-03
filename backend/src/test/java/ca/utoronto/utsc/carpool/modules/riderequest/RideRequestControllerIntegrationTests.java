@@ -93,6 +93,33 @@ class RideRequestControllerIntegrationTests {
 
         mockMvc.perform(patch("/api/v1/requests/{requestId}/accept", UUID.randomUUID()))
                 .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(get("/api/v1/requests/me"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void passengerCanViewOnlyTheirOwnRequests() throws Exception {
+        String driverToken = registerAndGetToken("mine-driver@example.com");
+        String passengerOneToken = registerAndGetToken("mine-passenger-one@example.com");
+        String passengerTwoToken = registerAndGetToken("mine-passenger-two@example.com");
+        UUID firstRideId = createRideAndGetId(driverToken, 2);
+        UUID secondRideId = createRideAndGetId(driverToken, 3);
+        UUID passengerOneRequestId = createRequestAndGetId(passengerOneToken, firstRideId);
+
+        createRequestAndGetId(passengerTwoToken, secondRideId);
+
+        mockMvc.perform(get("/api/v1/requests/me")
+                        .header("Authorization", bearer(passengerOneToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(1))
+                .andExpect(jsonPath("$.data[0].id").value(passengerOneRequestId.toString()))
+                .andExpect(jsonPath("$.data[0].rideId").value(firstRideId.toString()))
+                .andExpect(jsonPath("$.data[0].rideOrigin").value("UTSC Student Centre"))
+                .andExpect(jsonPath("$.data[0].rideDestination").value("Scarborough Town Centre"))
+                .andExpect(jsonPath("$.data[0].rideDepartureTime").exists())
+                .andExpect(jsonPath("$.data[0].rideAvailableSeats").value(2))
+                .andExpect(jsonPath("$.data[0].status").value("PENDING"));
     }
 
     @Test

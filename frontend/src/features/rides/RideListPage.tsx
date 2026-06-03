@@ -1,22 +1,34 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Alert } from '@/components/ui/Alert';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { RideCard } from '@/features/rides/components/RideCard';
-import { hasRequestedRide } from '@/features/rides/rideStatus';
+import { hasRequestedRide, isRideFull } from '@/features/rides/rideStatus';
 import { useAuth } from '@/features/auth/useAuth';
 import { getApiErrorMessage } from '@/lib/api/errors';
 import { getRides, requestRide } from '@/lib/api/rides';
 import type { Ride } from '@/types/api';
 
+type RideSortOption = 'newest' | 'price-asc' | 'price-desc' | 'departure-time' | 'available-seats';
+
+const rideSortOptions: Array<{ value: RideSortOption; label: string }> = [
+  { value: 'newest', label: 'Newest' },
+  { value: 'price-asc', label: 'Price (Low to High)' },
+  { value: 'price-desc', label: 'Price (High to Low)' },
+  { value: 'departure-time', label: 'Departure Time' },
+  { value: 'available-seats', label: 'Available Seats' },
+];
+
 export function RideListPage() {
   const { user } = useAuth();
   const [rides, setRides] = useState<Ride[]>([]);
+  const [sortOption, setSortOption] = useState<RideSortOption>('newest');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [requestingRideId, setRequestingRideId] = useState<string | null>(null);
   const [requestMessage, setRequestMessage] = useState<string | null>(null);
+  const sortedRides = useMemo(() => sortRides(rides, sortOption), [rides, sortOption]);
 
   useEffect(() => {
     let isMounted = true;
@@ -49,6 +61,10 @@ export function RideListPage() {
   }, []);
 
   async function handleRequestRide(ride: Ride) {
+    if (isRideFull(ride)) {
+      return;
+    }
+
     setRequestingRideId(ride.id);
     setRequestMessage(null);
     setError(null);
@@ -104,40 +120,78 @@ export function RideListPage() {
         ) : null}
 
         {!isLoading && rides.length > 0 ? (
-          <div className="grid gap-4 lg:grid-cols-2">
-            {rides.map((ride) => {
-              const isOwnRide = ride.driverId === user?.id;
-              const isFull = ride.availableSeats <= 0;
-              const hasRequested = hasRequestedRide(ride);
+          <>
+            <div className="flex flex-col gap-2 rounded-lg border border-slate-200 bg-white p-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+              <label htmlFor="ride-sort" className="text-sm font-medium text-slate-700">
+                Sort by
+              </label>
+              <select
+                id="ride-sort"
+                value={sortOption}
+                onChange={(event) => setSortOption(event.target.value as RideSortOption)}
+                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-900 shadow-sm outline-none transition focus:border-utsc-teal focus:ring-2 focus:ring-utsc-teal/20 sm:w-60"
+              >
+                {rideSortOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-              return (
-                <RideCard
-                  key={ride.id}
-                  ride={ride}
-                  action={
-                    <button
-                      type="button"
-                      disabled={isOwnRide || isFull || hasRequested || requestingRideId === ride.id}
-                      onClick={() => void handleRequestRide(ride)}
-                      className="rounded-md bg-slate-950 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
-                    >
-                      {requestingRideId === ride.id
-                        ? 'Requesting...'
-                        : isOwnRide
-                          ? 'Your ride'
-                          : hasRequested
-                            ? 'Requested'
-                            : isFull
-                              ? 'Full'
-                              : 'Request seat'}
-                    </button>
-                  }
-                />
-              );
-            })}
-          </div>
+            <div className="grid gap-4 lg:grid-cols-2">
+              {sortedRides.map((ride) => {
+                const isOwnRide = ride.driverId === user?.id;
+                const isFull = isRideFull(ride);
+                const hasRequested = hasRequestedRide(ride);
+
+                return (
+                  <RideCard
+                    key={ride.id}
+                    ride={ride}
+                    action={
+                      <button
+                        type="button"
+                        disabled={isOwnRide || isFull || hasRequested || requestingRideId === ride.id}
+                        onClick={() => void handleRequestRide(ride)}
+                        className="rounded-md bg-slate-950 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+                      >
+                        {requestingRideId === ride.id
+                          ? 'Requesting...'
+                          : isOwnRide
+                            ? 'Your ride'
+                            : hasRequested
+                              ? 'Requested'
+                              : isFull
+                                ? 'Full'
+                                : 'Request seat'}
+                      </button>
+                    }
+                  />
+                );
+              })}
+            </div>
+          </>
         ) : null}
       </div>
     </section>
   );
+}
+
+function sortRides(rides: Ride[], sortOption: RideSortOption) {
+  return [...rides].sort((firstRide, secondRide) => {
+    switch (sortOption) {
+      case 'price-asc':
+        return firstRide.price - secondRide.price;
+      case 'price-desc':
+        return secondRide.price - firstRide.price;
+      case 'departure-time':
+        return new Date(firstRide.departureTime).getTime() - new Date(secondRide.departureTime).getTime();
+      case 'available-seats':
+        return secondRide.availableSeats - firstRide.availableSeats;
+      case 'newest':
+      default:
+        return new Date(secondRide.createdAt).getTime() - new Date(firstRide.createdAt).getTime();
+    }
+  });
 }

@@ -21,6 +21,9 @@ public interface RideRequestRepository extends JpaRepository<RideRequest, UUID> 
 
     List<RideRequest> findByPassengerIdAndRideIdIn(UUID passengerId, Collection<UUID> rideIds);
 
+    @EntityGraph(attributePaths = {"ride", "passenger"})
+    List<RideRequest> findByPassengerIdOrderByCreatedAtDesc(UUID passengerId);
+
     long countByRideId(UUID rideId);
 
     @Query("""
