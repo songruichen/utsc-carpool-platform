@@ -7,7 +7,7 @@ export function getRideStatus(ride: Pick<Ride, 'availableSeats' | 'currentUserRe
     return 'requested';
   }
 
-  if (ride.availableSeats <= 0) {
+  if (isRideFull(ride)) {
     return 'full';
   }
 
@@ -24,7 +24,7 @@ export function getRideStatusLabel(status: RideStatus, availableSeats: number) {
   }
 
   if (status === 'full') {
-    return 'Full';
+    return 'FULL';
   }
 
   return `${availableSeats} ${availableSeats === 1 ? 'seat' : 'seats'} left`;
@@ -32,4 +32,8 @@ export function getRideStatusLabel(status: RideStatus, availableSeats: number) {
 
 export function hasRequestedRide(ride: Pick<Ride, 'currentUserRequestStatus'>) {
   return Boolean(ride.currentUserRequestStatus);
+}
+
+export function isRideFull(ride: Pick<Ride, 'availableSeats'>) {
+  return ride.availableSeats <= 0;
 }

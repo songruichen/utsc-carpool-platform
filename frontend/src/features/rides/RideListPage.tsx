@@ -4,7 +4,7 @@ import { Alert } from '@/components/ui/Alert';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { RideCard } from '@/features/rides/components/RideCard';
-import { hasRequestedRide } from '@/features/rides/rideStatus';
+import { hasRequestedRide, isRideFull } from '@/features/rides/rideStatus';
 import { useAuth } from '@/features/auth/useAuth';
 import { getApiErrorMessage } from '@/lib/api/errors';
 import { getRides, requestRide } from '@/lib/api/rides';
@@ -61,6 +61,10 @@ export function RideListPage() {
   }, []);
 
   async function handleRequestRide(ride: Ride) {
+    if (isRideFull(ride)) {
+      return;
+    }
+
     setRequestingRideId(ride.id);
     setRequestMessage(null);
     setError(null);
@@ -138,7 +142,7 @@ export function RideListPage() {
             <div className="grid gap-4 lg:grid-cols-2">
               {sortedRides.map((ride) => {
                 const isOwnRide = ride.driverId === user?.id;
-                const isFull = ride.availableSeats <= 0;
+                const isFull = isRideFull(ride);
                 const hasRequested = hasRequestedRide(ride);
 
                 return (
