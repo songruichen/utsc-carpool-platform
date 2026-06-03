@@ -5,6 +5,7 @@ import type { Ride } from '@/types/api';
 import { formatDateTime, formatMoney } from '@/features/rides/formatters';
 import { RideStatusBadge } from '@/features/rides/components/RideStatusBadge';
 import { RequestCountBadge } from '@/features/rides/components/RequestCountBadge';
+import { isRideFull } from '@/features/rides/rideStatus';
 
 type RideCardProps = {
   ride: Ride;
@@ -12,8 +13,14 @@ type RideCardProps = {
 };
 
 export function RideCard({ ride, action }: RideCardProps) {
+  const isFull = isRideFull(ride);
+
   return (
-    <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition hover:border-slate-300">
+    <article
+      className={`rounded-lg border p-5 shadow-sm transition ${
+        isFull ? 'border-rose-200 bg-rose-50/40 hover:border-rose-300' : 'border-slate-200 bg-white hover:border-slate-300'
+      }`}
+    >
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-sm font-medium text-utsc-teal">{ride.driverName}</p>
@@ -36,8 +43,14 @@ export function RideCard({ ride, action }: RideCardProps) {
       <div className="mt-5 grid gap-3 text-sm text-slate-600 sm:grid-cols-3">
         <Info icon={<MapPin className="h-4 w-4" />} label={`${ride.origin} -> ${ride.destination}`} />
         <Info icon={<CalendarClock className="h-4 w-4" />} label={formatDateTime(ride.departureTime)} />
-        <Info icon={<UsersRound className="h-4 w-4" />} label={`${ride.availableSeats} seats open`} />
+        <Info icon={<UsersRound className="h-4 w-4" />} label={isFull ? 'Ride is full' : `${ride.availableSeats} seats open`} />
       </div>
+
+      {isFull ? (
+        <p className="mt-4 rounded-md border border-rose-200 bg-white px-3 py-2 text-sm font-medium text-rose-700">
+          This ride is full.
+        </p>
+      ) : null}
 
       {ride.notes ? <p className="mt-4 line-clamp-2 text-sm text-slate-600">{ride.notes}</p> : null}
 

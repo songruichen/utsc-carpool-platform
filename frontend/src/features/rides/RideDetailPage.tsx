@@ -11,7 +11,7 @@ import { formatDateTime, formatMoney } from '@/features/rides/formatters';
 import { RequestCountBadge } from '@/features/rides/components/RequestCountBadge';
 import { RideStatusBadge } from '@/features/rides/components/RideStatusBadge';
 import { getPassengerRideRequest, storePassengerRideRequest } from '@/features/rides/passengerRequestStorage';
-import { hasRequestedRide } from '@/features/rides/rideStatus';
+import { hasRequestedRide, isRideFull } from '@/features/rides/rideStatus';
 import { getApiErrorMessage } from '@/lib/api/errors';
 import {
   acceptRideRequest,
@@ -103,7 +103,7 @@ export function RideDetailPage() {
   }, []);
 
   async function handleRequestSeat() {
-    if (!ride) {
+    if (!ride || isRideFull(ride)) {
       return;
     }
 
@@ -260,7 +260,7 @@ export function RideDetailPage() {
   }
 
   const isOwnRide = ride.driverId === user?.id;
-  const isFull = ride.availableSeats <= 0;
+  const isFull = isRideFull(ride);
   const hasRequested = hasRequestedRide(ride);
   const canCancelRequest =
     !isOwnRide &&
@@ -271,7 +271,7 @@ export function RideDetailPage() {
 
   return (
     <section className="grid gap-6 lg:grid-cols-[1fr_360px]">
-      <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+      <div className={`rounded-lg border p-6 shadow-sm ${isFull ? 'border-rose-200 bg-rose-50/40' : 'border-slate-200 bg-white'}`}>
         <Link to="/rides" className="text-sm font-medium text-utsc-teal hover:text-teal-700">
           Back to rides
         </Link>
@@ -295,8 +295,14 @@ export function RideDetailPage() {
         <div className="mt-8 grid gap-4 sm:grid-cols-3">
           <Detail icon={<MapPin className="h-5 w-5" />} label="Route" value={`${ride.origin} -> ${ride.destination}`} />
           <Detail icon={<CalendarClock className="h-5 w-5" />} label="Departure" value={formatDateTime(ride.departureTime)} />
-          <Detail icon={<UsersRound className="h-5 w-5" />} label="Seats" value={`${ride.availableSeats} available`} />
+          <Detail icon={<UsersRound className="h-5 w-5" />} label="Seats" value={isFull ? 'Ride is full' : `${ride.availableSeats} available`} />
         </div>
+
+        {isFull ? (
+          <p className="mt-6 rounded-md border border-rose-200 bg-white px-4 py-3 text-sm font-medium text-rose-700">
+            This ride is full.
+          </p>
+        ) : null}
 
         {ride.notes ? (
           <div className="mt-8">
@@ -324,6 +330,8 @@ export function RideDetailPage() {
           <p className="mt-2 text-sm text-slate-600">
             {isOwnRide
               ? 'Passengers can request seats from the ride listing or detail page.'
+              : isFull
+                ? 'This ride is full and no more seat requests can be submitted.'
               : 'Send the driver a request. They can accept or reject it from their request list.'}
           </p>
           <button
@@ -363,14 +371,18 @@ export function RideDetailPage() {
                 >
                   {isCancelling ? 'Cancelling...' : 'Cancel Request'}
                 </button>
+              ) : isFull ? (
+                <p className="mt-5 rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
+                  This ride is full.
+                </p>
               ) : (
                 <button
                   type="button"
-                  disabled={isFull || hasRequested || isRequesting}
+                  disabled={hasRequested || isRequesting}
                   onClick={() => void handleRequestSeat()}
                   className="mt-5 w-full rounded-md bg-utsc-teal px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:bg-slate-300"
                 >
-                  {isRequesting ? 'Requesting...' : hasRequested ? 'Requested' : isFull ? 'Ride is full' : 'Request seat'}
+                  {isRequesting ? 'Requesting...' : hasRequested ? 'Requested' : 'Request seat'}
                 </button>
               )}
             </>
