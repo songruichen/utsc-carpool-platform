@@ -9,6 +9,7 @@ import ca.utoronto.utsc.carpool.modules.ride.entity.Ride;
 import ca.utoronto.utsc.carpool.modules.ride.mapper.RideMapper;
 import ca.utoronto.utsc.carpool.modules.ride.repository.RideRepository;
 import ca.utoronto.utsc.carpool.modules.riderequest.entity.RideRequestStatus;
+import ca.utoronto.utsc.carpool.modules.riderequest.repository.RideRequestCountView;
 import ca.utoronto.utsc.carpool.modules.riderequest.repository.RideRequestRepository;
 import ca.utoronto.utsc.carpool.modules.user.entity.User;
 import ca.utoronto.utsc.carpool.modules.user.repository.UserRepository;
@@ -48,11 +49,23 @@ public class RideService {
     @Transactional(readOnly = true)
     public PageResponse<RideResponse> getRides(Pageable pageable, UUID currentUserId) {
         Page<Ride> rides = rideRepository.findAll(pageable);
+        var rideIds = rides.map(Ride::getId).toList();
         Map<UUID, RideRequestStatus> requestStatuses = rideRequestRepository
-                .findByPassengerIdAndRideIdIn(currentUserId, rides.map(Ride::getId).toList())
+                .findByPassengerIdAndRideIdIn(currentUserId, rideIds)
                 .stream()
                 .collect(Collectors.toMap(request -> request.getRide().getId(), request -> request.getStatus()));
-        return PageResponse.from(rides.map(ride -> RideMapper.toResponse(ride, requestStatuses.get(ride.getId()))));
+        Map<UUID, Long> requestCounts = rideIds.isEmpty()
+                ? Map.of()
+                : rideRequestRepository.countByRideIds(rideIds)
+                        .stream()
+                        .collect(Collectors.toMap(RideRequestCountView::getRideId, RideRequestCountView::getRequestCount));
+        return PageResponse.from(
+                rides.map(ride -> RideMapper.toResponse(
+                        ride,
+                        requestStatuses.get(ride.getId()),
+                        requestCounts.getOrDefault(ride.getId(), 0L)
+                ))
+        );
     }
 
     @Transactional(readOnly = true)
@@ -80,6 +93,6 @@ public class RideService {
         RideRequestStatus requestStatus = rideRequestRepository.findByRideIdAndPassengerId(ride.getId(), currentUserId)
                 .map(request -> request.getStatus())
                 .orElse(null);
-        return RideMapper.toResponse(ride, requestStatus);
+        return RideMapper.toResponse(ride, requestStatus, rideRequestRepository.countByRideId(ride.getId()));
     }
 }

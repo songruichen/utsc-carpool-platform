@@ -24,10 +24,10 @@ public final class RideMapper {
     }
 
     public static RideResponse toResponse(Ride ride) {
-        return toResponse(ride, null);
+        return toResponse(ride, null, 0);
     }
 
-    public static RideResponse toResponse(Ride ride, RideRequestStatus currentUserRequestStatus) {
+    public static RideResponse toResponse(Ride ride, RideRequestStatus currentUserRequestStatus, long requestCount) {
         User driver = ride.getDriver();
         return new RideResponse(
                 ride.getId(),
@@ -41,6 +41,7 @@ public final class RideMapper {
                 ride.getNotes(),
                 ride.getCreatedAt(),
                 ride.getUpdatedAt(),
+                requestCount,
                 currentUserRequestStatus
         );
     }
