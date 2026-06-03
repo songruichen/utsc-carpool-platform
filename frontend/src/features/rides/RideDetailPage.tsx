@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { CalendarClock, MapPin, UsersRound } from 'lucide-react';
+import { CalendarClock, Copy, MapPin, UsersRound } from 'lucide-react';
 import { Alert } from '@/components/ui/Alert';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -34,12 +34,15 @@ export function RideDetailPage() {
   const [isRequesting, setIsRequesting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [requestMessage, setRequestMessage] = useState<string | null>(null);
+  const [copyMessage, setCopyMessage] = useState<string | null>(null);
+  const [isCopyingLink, setIsCopyingLink] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [passengerRequest, setPassengerRequest] = useState<RideRequest | null>(null);
   const [processingRequest, setProcessingRequest] = useState<{ id: string; action: 'accept' | 'reject' | 'cancel' } | null>(
     null
   );
+  const copyMessageTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -90,6 +93,14 @@ export function RideDetailPage() {
       isMounted = false;
     };
   }, [rideId, user?.id]);
+
+  useEffect(() => {
+    return () => {
+      if (copyMessageTimeoutRef.current) {
+        clearTimeout(copyMessageTimeoutRef.current);
+      }
+    };
+  }, []);
 
   async function handleRequestSeat() {
     if (!ride) {
@@ -205,6 +216,37 @@ export function RideDetailPage() {
     }
   }
 
+  async function handleCopyLink() {
+    if (isCopyingLink) {
+      return;
+    }
+
+    setIsCopyingLink(true);
+    setError(null);
+    setCopyMessage(null);
+
+    if (copyMessageTimeoutRef.current) {
+      clearTimeout(copyMessageTimeoutRef.current);
+    }
+
+    try {
+      if (!navigator.clipboard) {
+        throw new Error('Clipboard access is not available in this browser');
+      }
+
+      await navigator.clipboard.writeText(window.location.href);
+      setCopyMessage('Link copied');
+      copyMessageTimeoutRef.current = setTimeout(() => {
+        setCopyMessage(null);
+        copyMessageTimeoutRef.current = null;
+      }, 2500);
+    } catch {
+      setError('Could not copy ride link');
+    } finally {
+      setIsCopyingLink(false);
+    }
+  }
+
   if (isLoading) {
     return <LoadingState label="Loading ride details" />;
   }
@@ -271,6 +313,11 @@ export function RideDetailPage() {
             {requestMessage}
           </div>
         ) : null}
+        {copyMessage ? (
+          <div className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+            {copyMessage}
+          </div>
+        ) : null}
 
         <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="text-base font-semibold text-slate-950">{isOwnRide ? 'Your ride' : 'Request this ride'}</h2>
@@ -279,6 +326,15 @@ export function RideDetailPage() {
               ? 'Passengers can request seats from the ride listing or detail page.'
               : 'Send the driver a request. They can accept or reject it from their request list.'}
           </p>
+          <button
+            type="button"
+            disabled={isCopyingLink}
+            onClick={() => void handleCopyLink()}
+            className="mt-5 flex w-full items-center justify-center gap-2 rounded-md border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+          >
+            <Copy className="h-4 w-4" aria-hidden="true" />
+            Copy Link
+          </button>
           {isOwnRide ? (
             <button
               type="button"
