@@ -18,6 +18,7 @@ public record RideResponse(
         String notes,
         Instant createdAt,
         Instant updatedAt,
+        long requestCount,
         RideRequestStatus currentUserRequestStatus
 ) {
 }

@@ -59,6 +59,7 @@ export type Ride = {
   notes?: string;
   createdAt: string;
   updatedAt: string;
+  requestCount?: number;
   currentUserRequestStatus?: RideRequestStatus;
 };
 
