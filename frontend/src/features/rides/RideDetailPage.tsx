@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { CalendarClock, Copy, MapPin, UsersRound } from 'lucide-react';
+import { CalendarClock, Copy, MapPin, Pencil, UsersRound } from 'lucide-react';
 import { Alert } from '@/components/ui/Alert';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -344,16 +344,25 @@ export function RideDetailPage() {
             Copy Link
           </button>
           {isOwnRide ? (
-            <button
-              type="button"
-              onClick={() => {
-                setError(null);
-                setIsDeleteDialogOpen(true);
-              }}
-              className="mt-5 w-full rounded-md border border-red-200 px-4 py-2.5 text-sm font-semibold text-red-700 transition hover:bg-red-50"
-            >
-              Delete ride
-            </button>
+            <>
+              <Link
+                to={`/rides/${ride.id}/edit`}
+                className="mt-5 flex w-full items-center justify-center gap-2 rounded-md bg-utsc-teal px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-teal-700"
+              >
+                <Pencil className="h-4 w-4" aria-hidden="true" />
+                Edit Ride
+              </Link>
+              <button
+                type="button"
+                onClick={() => {
+                  setError(null);
+                  setIsDeleteDialogOpen(true);
+                }}
+                className="mt-5 w-full rounded-md border border-red-200 px-4 py-2.5 text-sm font-semibold text-red-700 transition hover:bg-red-50"
+              >
+                Delete ride
+              </button>
+            </>
           ) : null}
           {!isOwnRide ? (
             <>

@@ -1,5 +1,13 @@
 import { apiClient } from '@/lib/api/client';
-import type { ApiResponse, CreateRideRequest, PageResponse, PassengerRideRequest, Ride, RideRequest } from '@/types/api';
+import type {
+  ApiResponse,
+  CreateRideRequest,
+  PageResponse,
+  PassengerRideRequest,
+  Ride,
+  RideRequest,
+  UpdateRideRequest
+} from '@/types/api';
 
 export async function getRides(page = 0, size = 20): Promise<PageResponse<Ride>> {
   const response = await apiClient.get<ApiResponse<PageResponse<Ride>>>('/rides', {
@@ -15,6 +23,11 @@ export async function getRide(rideId: string): Promise<Ride> {
 
 export async function createRide(request: CreateRideRequest): Promise<Ride> {
   const response = await apiClient.post<ApiResponse<Ride>>('/rides', request);
+  return response.data.data;
+}
+
+export async function updateRide(rideId: string, request: UpdateRideRequest): Promise<Ride> {
+  const response = await apiClient.put<ApiResponse<Ride>>(`/rides/${rideId}`, request);
   return response.data.data;
 }
 

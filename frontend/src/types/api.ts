@@ -72,6 +72,8 @@ export type CreateRideRequest = {
   notes?: string;
 };
 
+export type UpdateRideRequest = CreateRideRequest;
+
 export type RideRequestStatus = 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'CANCELLED';
 
 export type RideRequest = {

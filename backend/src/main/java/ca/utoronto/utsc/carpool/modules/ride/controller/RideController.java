@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -65,5 +66,14 @@ public class RideController {
             @AuthenticationPrincipal SecurityUserDetails currentUser
     ) {
         rideService.deleteRide(id, currentUser.getId());
+    }
+
+    @PutMapping("/{id}")
+    public ApiResponse<RideResponse> updateRide(
+            @PathVariable UUID id,
+            @Valid @RequestBody CreateRideRequest request,
+            @AuthenticationPrincipal SecurityUserDetails currentUser
+    ) {
+        return ApiResponse.success("Ride updated", rideService.updateRide(id, request, currentUser.getId()));
     }
 }

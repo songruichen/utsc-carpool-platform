@@ -84,6 +84,24 @@ public class RideService {
         rideRepository.delete(ride);
     }
 
+    @Transactional
+    public RideResponse updateRide(UUID rideId, CreateRideRequest request, UUID currentUserId) {
+        Ride ride = findRideWithDriver(rideId);
+
+        if (!ride.getDriver().getId().equals(currentUserId)) {
+            throw new ForbiddenOperationException("Only the ride owner can edit this ride");
+        }
+
+        ride.setOrigin(request.origin());
+        ride.setDestination(request.destination());
+        ride.setDepartureTime(request.departureTime());
+        ride.setAvailableSeats(request.availableSeats());
+        ride.setPrice(request.price());
+        ride.setNotes(request.notes());
+
+        return toResponse(ride, currentUserId);
+    }
+
     private Ride findRideWithDriver(UUID rideId) {
         return rideRepository.findById(rideId)
                 .orElseThrow(() -> new ResourceNotFoundException("Ride not found"));

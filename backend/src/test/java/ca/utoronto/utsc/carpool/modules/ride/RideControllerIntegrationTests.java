@@ -22,6 +22,7 @@ import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -144,6 +145,62 @@ class RideControllerIntegrationTests {
                 .andExpect(status().isNotFound());
     }
 
+    @Test
+    void rideOwnerCanUpdateRide() throws Exception {
+        String ownerToken = registerAndGetToken("owner-update@example.com");
+        UUID rideId = createRideAndGetId(ownerToken);
+
+        Map<String, Object> updateRequest = Map.of(
+                "origin", "UTSC Library",
+                "destination", "Kennedy Station",
+                "departureTime", Instant.now().plusSeconds(172_800).toString(),
+                "availableSeats", 2,
+                "price", new BigDecimal("6.25"),
+                "notes", "Meet outside the library entrance"
+        );
+
+        mockMvc.perform(put("/api/v1/rides/{id}", rideId)
+                        .header("Authorization", bearer(ownerToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateRequest)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").value("Ride updated"))
+                .andExpect(jsonPath("$.data.id").value(rideId.toString()))
+                .andExpect(jsonPath("$.data.origin").value("UTSC Library"))
+                .andExpect(jsonPath("$.data.destination").value("Kennedy Station"))
+                .andExpect(jsonPath("$.data.availableSeats").value(2))
+                .andExpect(jsonPath("$.data.price").value(6.25))
+                .andExpect(jsonPath("$.data.notes").value("Meet outside the library entrance"));
+
+        mockMvc.perform(get("/api/v1/rides/{id}", rideId)
+                        .header("Authorization", bearer(ownerToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.origin").value("UTSC Library"))
+                .andExpect(jsonPath("$.data.destination").value("Kennedy Station"))
+                .andExpect(jsonPath("$.data.availableSeats").value(2));
+    }
+
+    @Test
+    void nonOwnerCannotUpdateRide() throws Exception {
+        String ownerToken = registerAndGetToken("owner-edit-forbidden@example.com");
+        String otherUserToken = registerAndGetToken("other-edit-forbidden@example.com");
+        UUID rideId = createRideAndGetId(ownerToken);
+
+        mockMvc.perform(put("/api/v1/rides/{id}", rideId)
+                        .header("Authorization", bearer(otherUserToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(validRideRequest())))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("Only the ride owner can edit this ride"));
+
+        mockMvc.perform(get("/api/v1/rides/{id}", rideId)
+                        .header("Authorization", bearer(ownerToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.origin").value("UTSC Student Centre"))
+                .andExpect(jsonPath("$.data.destination").value("Scarborough Town Centre"));
+    }
+
     private UUID createRideAndGetId(String token) throws Exception {
         String response = mockMvc.perform(post("/api/v1/rides")
                         .header("Authorization", bearer(token))
@@ -190,4 +247,3 @@ class RideControllerIntegrationTests {
         return "Bearer " + token;
     }
 }
-
