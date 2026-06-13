@@ -18,31 +18,6 @@ backend/    Spring Boot API
 docs/       Product, architecture, and API documentation
 ```
 
-## Getting Started
-
-1. Copy environment examples:
-
-```bash
-cp frontend/.env.example frontend/.env
-cp backend/.env.example backend/.env
-```
-
-2. Start PostgreSQL locally and create the configured database.
-
-3. Run the backend:
-
-```bash
-cd backend
-mvn spring-boot:run
-```
-
-4. Run the frontend:
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
 
 ## Planned Phases
 
